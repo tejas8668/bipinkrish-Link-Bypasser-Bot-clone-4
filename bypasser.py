@@ -1977,7 +1977,7 @@ def krownlinks(url):
     url = url[:-1] if url[-1] == "/" else url
     code = url.split("/")[-1]
     final_url = f"{DOMAIN}/{code}"
-    ref = "https://www.techkhulasha.com/"
+    ref = "https://blog.anyrorgujaratonline.in/"
     h = {"referer": ref}
     resp = client.get(final_url, headers=h)
     soup = BeautifulSoup(resp.content, "html.parser")
@@ -1989,8 +1989,7 @@ def krownlinks(url):
     try:
         return str(r.json()["url"])
     except BaseException:
-        return "Something went wrong :("
-
+        return "Something went wrong, Please Wait For Few Seconds and try again..."
 
 ####################################################################################################
 # adrinolink
