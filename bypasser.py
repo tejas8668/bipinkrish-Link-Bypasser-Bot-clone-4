@@ -2480,7 +2480,7 @@ def kingurl(url, retry=False):
     url = url[:-1] if url[-1] == "/" else url
     code = url.split("/")[-1]
     final_url = f"{DOMAIN}/{code}"
-    ref = "https://rg.freshbhojpuri.com/"
+    ref = "https://trust.bgmi32bitapk.in/"
     h = {"referer": ref}
     
     try:
@@ -2497,7 +2497,7 @@ def kingurl(url, retry=False):
             print(f"Error occurred: {e}. Retrying...")
             return kingurl(url, retry=True)
         else:
-            return "Something went wrong, Please try again..."
+            return "Something went wrong, Please Wait For Few Seconds and try again..."
 
 
 '''def kingurl(url):
