@@ -2604,8 +2604,8 @@ def primeurl(url):
     try:
         return str(r.json()["url"])
     except BaseException:
-        return "Something went wrong, Please try again"
-
+        return "Something went wrong, Please Wait For Few Seconds and try again..."
+        
 def earn4link(url):
     # Cloudflare bypass के लिए scraper बनाएं
     client = cloudscraper.create_scraper(
