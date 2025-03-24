@@ -229,16 +229,25 @@ async def send_start(client: Client, message: Message):
         user_data = users_collection.find_one({"user_id": user.id, "token": token})
 
         if user_data:
-            # Update the user's verification status
-            users_collection.update_one(
-                {"user_id": user.id},
-                {"$set": {"verified_until": datetime.now() + timedelta(days=1)}},
-                upsert=True
-            )
-            await message.reply_text(
-                "✅ **Verification Successful!**\n\n"
-                "You can now use the bot for the next 24 hours without any ads or restrictions."
-            )
+            # Check if the token is expired
+            token_expiration = user_data.get("token_expiration", datetime.min)
+            if token_expiration > datetime.now():
+                # Update the user's verification status
+                users_collection.update_one(
+                    {"user_id": user.id},
+                    {"$set": {"verified_until": datetime.now() + timedelta(days=1)}},
+                    upsert=True
+                )
+                await message.reply_text(
+                    f"✅ **Verification Successful!**\n\n"
+                    f"You can now use the bot for the next 24 hours without any ads or restrictions.\n"
+                    f"Your token will expire on: {token_expiration.strftime('%Y-%m-%d %H:%M:%S')}"
+                )
+            else:
+                await message.reply_text(
+                    "❌ **Token Expired!**\n\n"
+                    "Please generate a new token and try verifying again."
+                )
         else:
             await message.reply_text(
                 "❌ **Invalid Token!**\n\n"
@@ -254,7 +263,7 @@ async def send_start(client: Client, message: Message):
     )
     await app.send_message(
         message.chat.id,
-        f"__👋 Hi **{message.from_user.mention}**, I am Link Bypasser Bot. Just send me any supported links and I will get you results.\nCheckout /help to read more.__",
+        f"__👋 Hi **{message.from_user.mention}**, I am Link Bypasser Bot. Just send me any supported links and I will get you results.\nCheckout /help to read more.\n\nIf you face any issue with some sites please report error, We solve it as soon as possible.__",
         reply_markup=InlineKeyboardMarkup(
             [
                 [
@@ -273,6 +282,12 @@ async def send_start(client: Client, message: Message):
                     InlineKeyboardButton(
                         "Dev Channel",
                         url="https://t.me/+WaXaosFDkGowYjI1",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "Report Error",
+                        url="https://t.me/Assistant_24_7_bot",
                     )
                 ],
             ]
@@ -347,6 +362,8 @@ async def broadcast(client: Client, message: Message):
             sent_count = 0
             block_count = 0
             fail_count = 0
+            
+            progress_message = await message.reply_text(f"Broadcasting message to {total_users} users...")
 
             for user_data in all_users:
                 user_id = user_data['user_id']
@@ -355,26 +372,44 @@ async def broadcast(client: Client, message: Message):
                         await client.send_photo(chat_id=user_id, photo=reply_message.photo.file_id, caption=reply_message.caption)
                     elif reply_message.video:
                         await client.send_video(chat_id=user_id, video=reply_message.video.file_id, caption=reply_message.caption)
+                    elif reply_message.document:
+                        await client.send_document(chat_id=user_id, document=reply_message.document.file_id, caption=reply_message.caption)
+                    elif reply_message.audio:
+                        await client.send_audio(chat_id=user_id, audio=reply_message.audio.file_id, caption=reply_message.caption)
+                    elif reply_message.voice:
+                        await client.send_voice(chat_id=user_id, voice=reply_message.voice.file_id, caption=reply_message.caption)
+                    elif reply_message.sticker:
+                        await client.send_sticker(chat_id=user_id, sticker=reply_message.sticker.file_id)
                     else:
                         await client.send_message(chat_id=user_id, text=reply_message.text)
                     sent_count += 1
+                    
+                    # Update progress every 25 users
+                    if sent_count % 25 == 0:
+                        await progress_message.edit_text(
+                            f"Broadcasting in progress...\n\n"
+                            f"Sent: {sent_count}/{total_users}"
+                        )
+                        
                 except Exception as e:
-                    if 'blocked' in str(e):
+                    if 'blocked' in str(e) or 'USER_IS_BLOCKED' in str(e):
                         block_count += 1
                     else:
                         fail_count += 1
+                        logger.error(f"Failed to send broadcast to {user_id}: {str(e)}")
 
-            await message.reply_text(
-                f"Broadcast completed!\n\n"
-                f"Total users: {total_users}\n"
-                f"Messages sent: {sent_count}\n"
-                f"Users blocked the bot: {block_count}\n"
-                f"Failed to send messages: {fail_count}"
+            await progress_message.edit_text(
+                f"✅ **Broadcast completed!**\n\n"
+                f"📊 **Statistics:**\n"
+                f"👥 Total users: {total_users}\n"
+                f"✅ Messages sent: {sent_count}\n"
+                f"🚫 Users blocked the bot: {block_count}\n"
+                f"❌ Failed to send: {fail_count}"
             )
         else:
-            await message.reply_text("Please reply to a message with /broadcast to send it to all users.")
+            await message.reply_text("⚠️ Please reply to a message with /broadcast to send it to all users.")
     else:
-        await message.reply_text("You have no rights to use my commands.")
+        await message.reply_text("⛔ You have no rights to use my commands.")
         
 # links
 @app.on_message(filters.text)
@@ -417,10 +452,12 @@ async def check_verification(user_id: int) -> bool:
 async def get_token(user_id: int, bot_username: str) -> str:
     # Generate a random token
     token = os.urandom(16).hex()
+    # Set token expiration time (24 hours from now)
+    token_expiration = datetime.now() + timedelta(hours=24)
     # Update user's verification status in database
     users_collection.update_one(
         {"user_id": user_id},
-        {"$set": {"token": token, "verified_until": datetime.min}},  # Reset verified_until to min
+        {"$set": {"token": token, "token_expiration": token_expiration, "verified_until": datetime.min}},  # Reset verified_until to min
         upsert=True
     )
     # Create verification link
